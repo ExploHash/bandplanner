@@ -6,17 +6,22 @@ import { supabase } from "@/lib/supabaseClient";
 
 export default function Settings({ bandId }) {
   const [members, setMembers] = useState([]);
+  const [allowRed, setAllowRed] = useState(true);
   const [newName, setNewName] = useState("");
   const [error, setError] = useState(null);
 
   async function load() {
-    const { data, error: err } = await supabase
-      .from("band_members")
-      .select("id, name")
-      .eq("band_id", bandId)
-      .order("created_at");
-    if (err) setError(err.message);
-    else setMembers(data);
+    const [memRes, bandRes] = await Promise.all([
+      supabase
+        .from("band_members")
+        .select("id, name")
+        .eq("band_id", bandId)
+        .order("created_at"),
+      supabase.from("bands").select("allow_red").eq("id", bandId).maybeSingle(),
+    ]);
+    if (memRes.error) setError(memRes.error.message);
+    else setMembers(memRes.data);
+    if (bandRes.data) setAllowRed(bandRes.data.allow_red);
   }
 
   useEffect(() => {
@@ -33,6 +38,20 @@ export default function Settings({ bandId }) {
     if (err) return setError("Could not add: " + err.message);
     setNewName("");
     load();
+  }
+
+  async function toggleRed() {
+    const next = !allowRed;
+    setAllowRed(next); // optimistic
+    setError(null);
+    const { error: err } = await supabase
+      .from("bands")
+      .update({ allow_red: next })
+      .eq("id", bandId);
+    if (err) {
+      setAllowRed(!next);
+      setError("Could not save setting: " + err.message);
+    }
   }
 
   async function deleteMember(member) {
@@ -89,6 +108,22 @@ export default function Settings({ bandId }) {
         />
         <button className="add-btn" onClick={addMember}>
           Add
+        </button>
+      </div>
+      <h3 className="settings-heading">Options</h3>
+      <div className="member-row">
+        <span className="member-name toggle-label">
+          Red button
+          <small>Let members mark blocks as “not available”</small>
+        </span>
+        <button
+          className={`switch ${allowRed ? "on" : ""}`}
+          role="switch"
+          aria-checked={allowRed}
+          aria-label="Red button"
+          onClick={toggleRed}
+        >
+          <span className="knob" />
         </button>
       </div>
       {error && <p className="error">{error}</p>}

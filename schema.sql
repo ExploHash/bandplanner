@@ -7,8 +7,12 @@ drop table if exists availability;
 create table bands (
   id text primary key,
   name text not null,
+  -- Setting: whether members can mark blocks red (not available)
+  allow_red boolean not null default true,
   created_at timestamptz not null default now()
 );
+-- Already ran v2 before allow_red existed? Run only this instead:
+-- alter table bands add column allow_red boolean not null default true;
 
 create table band_members (
   id uuid primary key default gen_random_uuid(),

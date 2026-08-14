@@ -19,6 +19,7 @@ export default function Calendar({ bandId, name }) {
   // planner mode: how many OTHERS marked a key green
   const [othersGreen, setOthersGreen] = useState({});
   const [memberCount, setMemberCount] = useState(0);
+  const [allowRed, setAllowRed] = useState(true);
   const [toast, setToast] = useState(null);
 
   function showToast(msg) {
@@ -34,7 +35,7 @@ export default function Calendar({ bandId, name }) {
       setOthersGreen({});
       // Load the whole month for everyone in this band: own rows drive the
       // colors, other people's reds drive the striped overlay.
-      const [availRes, countRes] = await Promise.all([
+      const [availRes, countRes, bandRes] = await Promise.all([
         supabase
           .from("availability")
           .select("name, day, block, status")
@@ -45,12 +46,14 @@ export default function Calendar({ bandId, name }) {
           .from("band_members")
           .select("id", { count: "exact", head: true })
           .eq("band_id", bandId),
+        supabase.from("bands").select("allow_red").eq("id", bandId).maybeSingle(),
       ]);
       if (availRes.error) {
         showToast("Could not load data: " + availRes.error.message);
         return;
       }
       setMemberCount(countRes.count ?? 0);
+      if (bandRes.data) setAllowRed(bandRes.data.allow_red);
       const next = {};
       const reds = new Set();
       const greens = {};
@@ -77,7 +80,9 @@ export default function Calendar({ bandId, name }) {
   async function onBlockClick(iso, block) {
     const key = `${iso}|${block}`;
     const cur = state[key];
-    const next = cur === "green" ? "red" : cur === "red" ? null : "green";
+    // With red disabled the cycle is just green -> clear.
+    const next =
+      cur === "green" ? (allowRed ? "red" : null) : cur === "red" ? null : "green";
 
     // Optimistic update
     setState((s) => ({ ...s, [key]: next }));
@@ -108,9 +113,11 @@ export default function Calendar({ bandId, name }) {
   function blockClass(key) {
     if (resultsMode) {
       const g = state[key]?.green ?? 0;
-      if (memberCount > 0 && g >= memberCount) return "block green"; // everyone can
-      if (g > 1) return "block orange"; // more than one, not all
-      return "block"; // 0 or 1: no special color
+      let cls = "block"; // 0 or 1 green: no special color
+      if (memberCount > 0 && g >= memberCount) cls = "block green"; // everyone can
+      else if (g > 1) cls = "block orange"; // more than one, not all
+      if (state[key]?.red > 0) cls += " striped"; // someone can't make it
+      return cls;
     }
     let cls = state[key] ? `block ${state[key]}` : "block";
     if (othersRed.has(key)) cls += " striped";
@@ -167,7 +174,9 @@ export default function Calendar({ bandId, name }) {
       <p className="subtitle">
         {resultsMode
           ? "Results — number of people available per block"
-          : `${name} — tap a block: green = available, again = red, again = clear`}
+          : allowRed
+            ? `${name} — tap a block: green = available, again = red, again = clear`
+            : `${name} — tap a block: green = available, again = clear`}
       </p>
       <div className="weekdays">
         <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
@@ -179,11 +188,12 @@ export default function Calendar({ bandId, name }) {
             <span className="l-green">All can</span>
             <span className="l-orange">2+ can</span>
             <span className="l-none">0–1 can</span>
+            <span className="l-striped">Someone can&apos;t</span>
           </>
         ) : (
           <>
             <span className="l-green">Available</span>
-            <span className="l-red">Not available</span>
+            {allowRed && <span className="l-red">Not available</span>}
             <span className="l-none">No answer</span>
             <span className="l-striped">Someone can&apos;t</span>
           </>

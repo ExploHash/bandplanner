@@ -177,6 +177,53 @@ body {
   margin: 0;
 }
 
+/* ---- Settings ---- */
+.settings-heading {
+  max-width: 320px;
+  margin: 24px auto 10px;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+.toggle-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toggle-label small {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.75rem;
+}
+
+.switch {
+  flex-shrink: 0;
+  width: 48px;
+  height: 28px;
+  border-radius: 14px;
+  border: none;
+  background: var(--block);
+  cursor: pointer;
+  padding: 3px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.switch.on {
+  background: var(--green);
+  justify-content: flex-end;
+}
+
+.switch .knob {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+}
+
 /* ---- Calendar ---- */
 .cal-header {
   display: flex;
